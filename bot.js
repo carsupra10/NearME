@@ -1,10 +1,8 @@
 const TelegramBot = require('node-telegram-bot-api');
+const fuzz = require('fuzzball'); // For fuzzy matching
 
 // Replace with your bot token
 const token = '7586399636:AAFqRXh8zieCYXre-hnUYCRumINyCOnBFOY';
-const adminChatId = '6583101990'; // Replace with your chat ID
-
-
 const bot = new TelegramBot(token, { polling: true });
 
 // Data structures
