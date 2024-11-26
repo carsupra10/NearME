@@ -56,6 +56,7 @@ bot.onText(/\/start/, (msg) => {
   });
 });
 
+
 // Command: /find
 bot.onText(/\/find/, (msg) => {
   const chatId = msg.chat.id;
@@ -75,38 +76,62 @@ bot.onText(/\/find/, (msg) => {
     waitingUsers.push(chatId);
     bot.sendMessage(chatId, `🔎 Searching for a chat partner... Please wait.`);
 
-    // Timeout: Remove user after 60 seconds
-    setTimeout(() => {
-      if (waitingUsers.includes(chatId) && !users[chatId].partner) {
+    // Try to find a partner based on location
+    const findPartner = () => {
+      const potentialPartners = waitingUsers.filter(
+        (id) =>
+          id !== chatId &&
+          !users[id].partner &&
+          isCityMatch(users[id].city, users[chatId].city)
+      );
+
+      if (potentialPartners.length > 0) {
+        const partnerId = potentialPartners[0];
         removeFromWaitingList(chatId);
-        bot.sendMessage(chatId, `⏳ No chat partner found. Please try again later.`);
+        removeFromWaitingList(partnerId);
+
+        users[chatId].partner = partnerId;
+        users[partnerId].partner = chatId;
+
+        activeChats[chatId] = partnerId;
+        activeChats[partnerId] = chatId;
+
+        bot.sendMessage(chatId, `🎉 You are now connected! Start chatting.`);
+        bot.sendMessage(partnerId, `🎉 You are now connected! Start chatting.`);
+      } else {
+        // After 30 seconds, fall back to random connection
+        setTimeout(() => {
+          if (waitingUsers.includes(chatId) && !users[chatId].partner) {
+            const randomPartnerId = waitingUsers.find(
+              (id) => id !== chatId && !users[id].partner
+            );
+
+            if (randomPartnerId) {
+              removeFromWaitingList(chatId);
+              removeFromWaitingList(randomPartnerId);
+
+              users[chatId].partner = randomPartnerId;
+              users[randomPartnerId].partner = chatId;
+
+              activeChats[chatId] = randomPartnerId;
+              activeChats[randomPartnerId] = chatId;
+
+              bot.sendMessage(chatId, `🎉 You are now connected randomly! Start chatting.`);
+              bot.sendMessage(randomPartnerId, `🎉 You are now connected randomly! Start chatting.`);
+            } else {
+              bot.sendMessage(chatId, `⏳ No chat partner found. Please try again later.`);
+              removeFromWaitingList(chatId);
+            }
+          }
+        }, 30000);
       }
-    }, 60000);
-  }
+    };
 
-  // Try to find a partner
-  const potentialPartners = waitingUsers.filter(
-    (id) =>
-      id !== chatId &&
-      !users[id].partner &&
-      isCityMatch(users[id].city, users[chatId].city)
-  );
-
-  if (potentialPartners.length > 0) {
-    const partnerId = potentialPartners[0];
-    removeFromWaitingList(chatId);
-    removeFromWaitingList(partnerId);
-
-    users[chatId].partner = partnerId;
-    users[partnerId].partner = chatId;
-
-    activeChats[chatId] = partnerId;
-    activeChats[partnerId] = chatId;
-
-    bot.sendMessage(chatId, `🎉 You are now connected! Start chatting.`);
-    bot.sendMessage(partnerId, `🎉 You are now connected! Start chatting.`);
+    // Immediate partner search
+    findPartner();
   }
 });
+
 
 
 // Broadcast ads to all users
@@ -242,3 +267,4 @@ bot.onText(/\/help/, (msg) => {
     `Here are the commands you can use:\n\n/start - Set your city\n/find - Find a chat partner\n/end - Disconnect from chat\n/status - View waiting and connected users\n/help - Show this help message`
   );
 });
+
